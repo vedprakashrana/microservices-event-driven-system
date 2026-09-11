@@ -12,6 +12,12 @@ export interface UserEntity {
   updated_at: string;
 }
 
+export interface PreparedStatement {
+  get(...args: any[]): any;
+  run(...args: any[]): { changes: number };
+  all(...args: any[]): any[];
+}
+
 class JsonFileDatabase {
   private filePath: string;
   private users: Map<string, UserEntity> = new Map();
@@ -48,7 +54,7 @@ class JsonFileDatabase {
     }
   }
 
-  prepare(query: string) {
+  prepare(query: string): PreparedStatement {
     const lower = query.trim().toLowerCase();
 
     if (lower.startsWith('select id from users where email =') || lower.startsWith('select * from users where email =')) {
@@ -61,6 +67,8 @@ class JsonFileDatabase {
           }
           return undefined;
         },
+        run: () => ({ changes: 0 }),
+        all: () => [],
       };
     }
 
@@ -70,23 +78,30 @@ class JsonFileDatabase {
           const u = this.users.get(id);
           return u ? { ...u } : undefined;
         },
+        run: () => ({ changes: 0 }),
+        all: () => [],
       };
     }
 
     if (lower.startsWith('insert into users')) {
       return {
-        run: (id: string, email: string, password_hash: string, name: string, role: string, created_at: string, updated_at: string) => {
+        get: () => undefined,
+        run: (...args: any[]) => {
+          const [id, email, password_hash, name, role, created_at, updated_at] = args;
           const entity: UserEntity = { id, email, password_hash, name, role, created_at, updated_at };
           this.users.set(id, entity);
           this.persist();
           return { changes: 1 };
         },
+        all: () => [],
       };
     }
 
     if (lower.startsWith('update users set name =')) {
       return {
-        run: (name: string, updated_at: string, id: string) => {
+        get: () => undefined,
+        run: (...args: any[]) => {
+          const [name, updated_at, id] = args;
           const u = this.users.get(id);
           if (u) {
             u.name = name;
@@ -95,16 +110,19 @@ class JsonFileDatabase {
           }
           return { changes: 1 };
         },
+        all: () => [],
       };
     }
 
     if (lower.startsWith('delete from users')) {
       return {
+        get: () => undefined,
         run: () => {
           this.users.clear();
           this.persist();
           return { changes: 1 };
         },
+        all: () => [],
       };
     }
 

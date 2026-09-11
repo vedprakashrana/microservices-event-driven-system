@@ -17,6 +17,12 @@ export interface NotificationAuditEntity {
   created_at: string;
 }
 
+export interface PreparedStatement {
+  get(...args: any[]): any;
+  run(...args: any[]): { changes: number };
+  all(...args: any[]): any[];
+}
+
 class JsonFileAuditDatabase {
   private filePath: string;
   private audits: Map<string, NotificationAuditEntity> = new Map();
@@ -53,7 +59,7 @@ class JsonFileAuditDatabase {
     }
   }
 
-  prepare(query: string) {
+  prepare(query: string): PreparedStatement {
     const lower = query.trim().toLowerCase();
 
     if (lower.startsWith('select id, status from notification_audit where event_id =')) {
@@ -66,25 +72,29 @@ class JsonFileAuditDatabase {
           }
           return undefined;
         },
+        run: () => ({ changes: 0 }),
+        all: () => [],
       };
     }
 
     if (lower.startsWith('insert into notification_audit')) {
       return {
-        run: (
-          id: string,
-          event_id: string,
-          event_type: string,
-          recipient: string,
-          channel: string,
-          subject: string,
-          body: string,
-          status: 'DELIVERED' | 'FAILED' | 'DUPLICATE_SKIPPED',
-          attempts: number,
-          error_message: string | null,
-          correlation_id: string | null,
-          created_at: string
-        ) => {
+        get: () => undefined,
+        run: (...args: any[]) => {
+          const [
+            id,
+            event_id,
+            event_type,
+            recipient,
+            channel,
+            subject,
+            body,
+            status,
+            attempts,
+            error_message,
+            correlation_id,
+            created_at
+          ] = args;
           const entity: NotificationAuditEntity = {
             id,
             event_id,
@@ -103,6 +113,7 @@ class JsonFileAuditDatabase {
           this.persist();
           return { changes: 1 };
         },
+        all: () => [],
       };
     }
 
@@ -117,17 +128,23 @@ class JsonFileAuditDatabase {
           }
           return { count };
         },
+        run: () => ({ changes: 0 }),
+        all: () => [],
       };
     }
 
     if (lower.startsWith('select count(*) as count from notification_audit')) {
       return {
         get: () => ({ count: this.audits.size }),
+        run: () => ({ changes: 0 }),
+        all: () => [],
       };
     }
 
     if (lower.startsWith('select event_type, count(*) as count from notification_audit group by event_type')) {
       return {
+        get: () => undefined,
+        run: () => ({ changes: 0 }),
         all: () => {
           const map: Record<string, number> = {};
           for (const a of this.audits.values()) {
@@ -140,6 +157,8 @@ class JsonFileAuditDatabase {
 
     if (lower.startsWith('select * from notification_audit')) {
       return {
+        get: () => undefined,
+        run: () => ({ changes: 0 }),
         all: (...params: any[]) => {
           let list = Array.from(this.audits.values());
           if (lower.includes('where')) {
@@ -160,11 +179,13 @@ class JsonFileAuditDatabase {
 
     if (lower.startsWith('delete from notification_audit')) {
       return {
+        get: () => undefined,
         run: () => {
           this.audits.clear();
           this.persist();
           return { changes: 1 };
         },
+        all: () => [],
       };
     }
 

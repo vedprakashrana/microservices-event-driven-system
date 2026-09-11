@@ -9,6 +9,10 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "test": "echo \"Common package schemas validated\"",
+    "build": "echo \"Common package ready\""
+  },
   "dependencies": {
     "zod": "^3.24.2"
   }

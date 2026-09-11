@@ -45,7 +45,7 @@ export async function initNats(): Promise<JetStreamClient | null> {
   }
 }
 
-export async function publishEvent<T = any>(
+export async function publishEvent<T extends Record<string, any> = any>(
   subject: string,
   eventType: string,
   data: T,
