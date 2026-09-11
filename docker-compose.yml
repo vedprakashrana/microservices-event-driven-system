@@ -1,0 +1,91 @@
+services:
+  nats:
+    image: nats:2.10-alpine
+    container_name: microservices-nats
+    command: ["-c", "/etc/nats/nats.conf", "-js"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    volumes:
+      - ./config/nats.conf:/etc/nats/nats.conf:ro
+      - nats_data:/data/jetstream
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - microservices-net
+
+  user-service:
+    build:
+      context: .
+      dockerfile: services/user-service/Dockerfile
+    container_name: microservices-user-service
+    environment:
+      - PORT=8001
+      - NODE_ENV=production
+      - JWT_SECRET=super-secret-jwt-key-for-microservices-auth-2026
+      - NATS_URL=nats://nats:4222
+      - NATS_TOKEN=microservices-secure-nats-token-2026
+      - DB_PATH=/data/users.db
+    ports:
+      - "8001:8001"
+    volumes:
+      - user_data:/data
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
+  notification-service:
+    build:
+      context: .
+      dockerfile: services/notification-service/Dockerfile
+    container_name: microservices-notification-service
+    environment:
+      - PORT=8002
+      - NODE_ENV=production
+      - NATS_URL=nats://nats:4222
+      - NATS_TOKEN=microservices-secure-nats-token-2026
+      - DB_PATH=/data/notifications.db
+    ports:
+      - "8002:8002"
+    volumes:
+      - notif_data:/data
+    depends_on:
+      nats:
+        condition: service_healthy
+    networks:
+      - microservices-net
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: services/api-gateway/Dockerfile
+    container_name: microservices-api-gateway
+    environment:
+      - PORT=8000
+      - NODE_ENV=production
+      - JWT_SECRET=super-secret-jwt-key-for-microservices-auth-2026
+      - USER_SERVICE_URL=http://user-service:8001
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8002
+      - RATE_LIMIT_MAX=200
+      - RATE_LIMIT_WINDOW_MS=60000
+    ports:
+      - "8000:8000"
+    depends_on:
+      - user-service
+      - notification-service
+    networks:
+      - microservices-net
+
+volumes:
+  nats_data:
+  user_data:
+  notif_data:
+
+networks:
+  microservices-net:
+    driver: bridge

@@ -1,0 +1,55 @@
+### 1. Health Check
+GET http://localhost:8000/health
+
+### 2. Register New User (Dispatches async user.created event to NATS)
+# @name registerUser
+POST http://localhost:8000/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "alex.engineer@example.com",
+  "password": "SecurePassword2026!",
+  "name": "Alex Engineer"
+}
+
+### 3. Login User & Get JWT
+# @name loginUser
+POST http://localhost:8000/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "alex.engineer@example.com",
+  "password": "SecurePassword2026!"
+}
+
+### Store token from login response
+@authToken = {{loginUser.response.body.data.token}}
+
+### 4. Get Current User Profile (Protected Route)
+GET http://localhost:8000/api/v1/users/me
+Authorization: Bearer {{authToken}}
+
+### 5. Update Profile (Dispatches async user.updated event to NATS)
+PATCH http://localhost:8000/api/v1/users/me
+Authorization: Bearer {{authToken}}
+Content-Type: application/json
+
+{
+  "name": "Alex Senior Engineer"
+}
+
+### 6. Forgot Password (Dispatches async user.password_reset event to NATS)
+POST http://localhost:8000/api/v1/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "alex.engineer@example.com"
+}
+
+### 7. Notification Service - View Audit Logs (Consumed from NATS)
+GET http://localhost:8000/api/v1/notifications/audit-logs
+Authorization: Bearer {{authToken}}
+
+### 8. Notification Service - System Delivery Metrics
+GET http://localhost:8000/api/v1/notifications/metrics
+Authorization: Bearer {{authToken}}

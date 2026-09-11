@@ -1,0 +1,23 @@
+{
+  "name": "microservices-system",
+  "version": "1.0.0",
+  "description": "Production-grade microservices system with API Gateway, User Service, and Notification Service over NATS JetStream",
+  "private": true,
+  "workspaces": [
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev --workspace=@app/api-gateway\" \"npm run dev --workspace=@app/user-service\" \"npm run dev --workspace=@app/notification-service\"",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.2"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
